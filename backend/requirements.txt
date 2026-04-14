@@ -1,0 +1,5 @@
+# Core dependency - the cmbagent framework (pip install cmbagent_infosys -> import cmbagent)
+cmbagent_infosys==1.0.0
+
+# Additional backend dependencies
+python-dotenv>=1.0.0
