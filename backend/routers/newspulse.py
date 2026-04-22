@@ -924,42 +924,87 @@ async def get_stage_console(task_id: str, stage_num: int, since: int = 0):
 # =============================================================================
 
 @router.get("/recent", response_model=list[NewsPulseRecentTaskResponse])
-async def list_recent_tasks():
-    """List incomplete News Pulse tasks for resume."""
+async def list_recent_tasks(include_all: bool = False):
+    """List News Pulse tasks for the session sidebar.
+
+    Args:
+        include_all: If True, include completed and failed tasks too.
+                     If False (default), only return active/in-progress tasks.
+
+    The returned ``status`` is the *effective* status computed from child
+    stages, not the (potentially stale) ``WorkflowRun.status`` column.
+    Mirrors the deepresearch pattern in MARS-PaperPulse so the sidebar's
+    All / Running / Completed / Failed tabs partition tasks correctly even
+    after stops, crashes, and retries.
+    """
     db = _get_db()
     try:
         from cmbagent.database.models import WorkflowRun
-        runs = (
-            db.query(WorkflowRun)
-            .filter(
-                WorkflowRun.mode == "newspulse",
-                WorkflowRun.parent_run_id.is_(None),
+
+        query = db.query(WorkflowRun).filter(
+            WorkflowRun.mode == "newspulse",
+            WorkflowRun.parent_run_id.is_(None),  # parent runs only
+        )
+        if not include_all:
+            query = query.filter(
                 WorkflowRun.status.in_(["executing", "draft", "planning"]),
             )
+
+        runs = (
+            query
             .order_by(WorkflowRun.started_at.desc())
-            .limit(20)
+            .limit(50)
             .all()
         )
 
         result = []
+        parent_status_changed = False
         for run in runs:
             repo = _get_stage_repo(db, session_id=run.session_id)
             progress = repo.get_task_progress(parent_run_id=run.id)
-            current_stage = None
             stages = repo.list_stages(parent_run_id=run.id)
+
+            current_stage = None
             for s in stages:
                 if s.status != "completed":
                     current_stage = s.stage_number
                     break
 
+            # Compute effective status from child stages — the parent
+            # WorkflowRun.status can be stale (e.g. "failed" after a stop
+            # that the user has since retried, or "executing" after a
+            # background-task crash that never wrote the failure back).
+            effective_status = run.status
+            has_running = any(s.status == "running" for s in stages)
+            has_failed = any(s.status == "failed" for s in stages)
+            all_completed = (
+                len(stages) > 0
+                and all(s.status == "completed" for s in stages)
+            )
+
+            if has_running:
+                effective_status = "executing"
+            elif all_completed:
+                effective_status = "completed"
+            elif has_failed and not has_running:
+                effective_status = "failed"
+
+            # Persist the corrected status if it diverged
+            if run.status != effective_status:
+                run.status = effective_status
+                parent_status_changed = True
+
             result.append(NewsPulseRecentTaskResponse(
                 task_id=run.id,
                 task=run.task_description or "",
-                status=run.status,
+                status=effective_status,
                 created_at=run.started_at.isoformat() if run.started_at else None,
                 current_stage=current_stage,
                 progress_percent=progress.get("progress_percent", 0.0),
             ))
+
+        if parent_status_changed:
+            db.commit()
 
         return result
     finally:

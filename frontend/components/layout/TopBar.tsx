@@ -1,74 +1,102 @@
 'use client'
 
-import { Sun, Moon, Menu } from 'lucide-react'
-import { ConnectionStatus } from '@/components/common/ConnectionStatus'
-import { useWebSocketContext } from '@/contexts/WebSocketContext'
+import { useState } from 'react'
+import { Sun, Moon, Plus, Settings, TrendingUp } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useWebSocketContext } from '@/contexts/WebSocketContext'
+import { ConnectionStatus } from '@/components/common/ConnectionStatus'
+import ProviderSettings from '@/components/settings/ProviderSettings'
 
 interface TopBarProps {
-  onToggleMobileNav?: () => void
+  onNewSession?: () => void
 }
 
-export default function TopBar({ onToggleMobileNav }: TopBarProps) {
-  const { connected, reconnectAttempt, lastError, reconnect } = useWebSocketContext()
+export default function TopBar({ onNewSession }: TopBarProps) {
   const { theme, toggleTheme } = useTheme()
+  const { connected, reconnectAttempt, lastError, reconnect } = useWebSocketContext()
+  const [showSettings, setShowSettings] = useState(false)
 
   return (
-    <header
-      className="flex flex-col flex-shrink-0 border-b"
-      style={{
-        backgroundColor: 'var(--mars-color-surface-raised)',
-        borderColor: 'var(--mars-color-border)',
-      }}
-      role="banner"
-    >
-      {/* Top row: Logo + Actions */}
-      <div
-        className="flex items-center justify-between px-4"
-        style={{ height: '44px' }}
+    <>
+      <header
+        className="flex-shrink-0 border-b"
+        style={{
+          backgroundColor: 'var(--mars-color-surface-raised)',
+          borderColor: 'var(--mars-color-border)',
+        }}
+        role="banner"
       >
-        {/* Left: Logo + Mobile menu */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {onToggleMobileNav && (
-            <button
-              onClick={onToggleMobileNav}
-              className="p-2 rounded-mars-md transition-colors duration-mars-fast
-                hover:bg-[var(--mars-color-bg-hover)] sm:hidden"
-              style={{ color: 'var(--mars-color-text-secondary)' }}
-              aria-label="Toggle navigation menu"
+        <div
+          className="flex items-center justify-between px-5"
+          style={{ height: '52px' }}
+        >
+          {/* Left: brand */}
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #10b981, #14b8a6)' }}
             >
-              <Menu className="w-5 h-5" />
+              <TrendingUp className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1
+                className="text-sm font-bold tracking-tight"
+                style={{ color: 'var(--mars-color-text)', fontFamily: 'var(--mars-font-sans)' }}
+              >
+                MARS - NewsPulse
+              </h1>
+              <p className="text-[10px] leading-tight" style={{ color: 'var(--mars-color-text-tertiary)' }}>
+                Industry News &amp; Sentiment Analysis
+              </p>
+            </div>
+          </div>
+
+          {/* Right: settings + theme + connection + new */}
+          <div className="flex items-center gap-2">
+            <ConnectionStatus
+              connected={connected}
+              reconnectAttempt={reconnectAttempt}
+              lastError={lastError}
+              onReconnect={reconnect}
+            />
+
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 rounded-lg transition-colors duration-150 hover:bg-[var(--mars-color-bg-hover)]"
+              style={{ color: 'var(--mars-color-text-secondary)' }}
+              aria-label="LLM Provider Settings"
+              title="LLM Provider Settings"
+            >
+              <Settings className="w-4 h-4" />
             </button>
-          )}
-          <h1
-            className="text-base font-bold"
-            style={{ color: 'var(--mars-color-text)', fontFamily: 'var(--mars-font-sans)' }}
-          >
-            MARS - NewsPulse
-          </h1>
-        </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-mars-md transition-colors duration-mars-fast
-              hover:bg-[var(--mars-color-bg-hover)]"
-            style={{ color: 'var(--mars-color-text-secondary)' }}
-            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-            title={`${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-          >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg transition-colors duration-150 hover:bg-[var(--mars-color-bg-hover)]"
+              style={{ color: 'var(--mars-color-text-secondary)' }}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              title={`${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
 
-          <ConnectionStatus
-            connected={connected}
-            reconnectAttempt={reconnectAttempt}
-            lastError={lastError}
-            onReconnect={reconnect}
-          />
+            {onNewSession && (
+              <button
+                onClick={onNewSession}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all duration-150 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                style={{ background: 'linear-gradient(135deg, #10b981, #14b8a6)' }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                New Session
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {showSettings && (
+        <ProviderSettings onClose={() => setShowSettings(false)} />
+      )}
+    </>
   )
 }
