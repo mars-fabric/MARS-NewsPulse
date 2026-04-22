@@ -1,8 +1,7 @@
-"""
-Deepresearch task integration framework.
+"""NewsPulse task integration framework.
 
-Provides utilities, stage helpers, and phase classes for the multi-stage
-research paper workflow (idea -> method -> experiment -> paper).
+Lightweight utilities + stage-level helpers for the 4-stage News Pulse
+workflow (setup -> discovery -> analysis -> final report).
 """
 
 from task_framework.utils import (
@@ -17,8 +16,6 @@ from task_framework.utils import (
     check_file_paths,
 )
 
-from task_framework import stage_helpers
-
 __all__ = [
     "get_task_result",
     "format_prompt",
@@ -29,5 +26,4 @@ __all__ = [
     "input_check",
     "extract_file_paths",
     "check_file_paths",
-    "stage_helpers",
 ]

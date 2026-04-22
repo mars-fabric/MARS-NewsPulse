@@ -9,7 +9,7 @@ __pycache__/
 # Environment
 .env
 .env.local
-
+*venv
 # Build
 .next/
 out/
@@ -34,6 +34,10 @@ logs/
 *.db
 *.sqlite3
 
+# Cache
+.cache/
+
 # Work directories
 cmbdir*/
 cmbagent_*/
+mars_newspulse_cmbdir/

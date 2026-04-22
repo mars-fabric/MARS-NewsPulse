@@ -16,7 +16,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { AVAILABLE_MODELS as STATIC_FALLBACK } from '@/types/deepresearch'
+import { AVAILABLE_MODELS as STATIC_FALLBACK } from '@/types/newspulse'
 
 export interface ModelOption {
   value: string

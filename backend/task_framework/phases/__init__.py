@@ -1,7 +1,7 @@
-"""Deepresearch task phases -- auto-registered with PhaseRegistry on import."""
+"""NewsPulse phases -- auto-registered with PhaseRegistry on import."""
 
-from task_framework.phases.paper import DeepresearchPaperPhase
+from task_framework.phases.newspulse_report import NewsPulseReportPhase
 
 __all__ = [
-    "DeepresearchPaperPhase",
+    "NewsPulseReportPhase",
 ]

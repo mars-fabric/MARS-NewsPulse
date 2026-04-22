@@ -1,5 +1,5 @@
 """
-Pydantic models and schemas for API request/response validation.
+Pydantic models and schemas for the NewsPulse API.
 """
 
 from models.schemas import (
@@ -23,23 +23,18 @@ from models.schemas import (
     PlayFromNodeRequest,
 )
 
-from models.copilot_schemas import (
-    # Copilot configuration
-    CopilotConfig,
-    CopilotTaskRequest,
-    CopilotTaskResponse,
-    # Copilot session
-    CopilotSessionInfo,
-    CopilotTurnResult,
-    CopilotConversationHistory,
-    CopilotResult,
-    # Copilot feedback
-    CopilotFeedback,
-    CopilotNextTaskRequest,
-    # Copilot info
-    CopilotWorkflowInfo,
-    CopilotAgentInfo,
-    AvailableAgentsResponse,
+from models.newspulse_schemas import (
+    NewsPulseStageStatus,
+    NewsPulseCreateRequest,
+    NewsPulseCreateResponse,
+    NewsPulseExecuteRequest,
+    NewsPulseStageResponse,
+    NewsPulseStageContentResponse,
+    NewsPulseContentUpdateRequest,
+    NewsPulseRefineRequest,
+    NewsPulseRefineResponse,
+    NewsPulseTaskStateResponse,
+    NewsPulseRecentTaskResponse,
 )
 
 __all__ = [
@@ -61,17 +56,16 @@ __all__ = [
     # Branching models
     "BranchRequest",
     "PlayFromNodeRequest",
-    # Copilot models
-    "CopilotConfig",
-    "CopilotTaskRequest",
-    "CopilotTaskResponse",
-    "CopilotSessionInfo",
-    "CopilotTurnResult",
-    "CopilotConversationHistory",
-    "CopilotResult",
-    "CopilotFeedback",
-    "CopilotNextTaskRequest",
-    "CopilotWorkflowInfo",
-    "CopilotAgentInfo",
-    "AvailableAgentsResponse",
+    # NewsPulse models
+    "NewsPulseStageStatus",
+    "NewsPulseCreateRequest",
+    "NewsPulseCreateResponse",
+    "NewsPulseExecuteRequest",
+    "NewsPulseStageResponse",
+    "NewsPulseStageContentResponse",
+    "NewsPulseContentUpdateRequest",
+    "NewsPulseRefineRequest",
+    "NewsPulseRefineResponse",
+    "NewsPulseTaskStateResponse",
+    "NewsPulseRecentTaskResponse",
 ]

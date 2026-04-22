@@ -1,12 +1,12 @@
 """
-WebSocket module for handling real-time communication.
+WebSocket helpers for NewsPulse.
+
+Only the thin event emitter is exported; the NewsPulse pipeline manages its
+own WebSocket endpoint directly in ``main.py``.
 """
 
 from websocket.events import send_ws_event
-from websocket.handlers import websocket_endpoint, handle_client_message
 
 __all__ = [
     "send_ws_event",
-    "websocket_endpoint",
-    "handle_client_message",
 ]
