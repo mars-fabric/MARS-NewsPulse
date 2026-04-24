@@ -6,10 +6,11 @@ sentiment analysis, trend identification, company analysis, and risk assessment.
 Uses additional DDGS searches for verification.
 
 Design principles (same as discovery.py):
-1. NEVER refuse. The news_collection above always has material to analyze.
-2. Synthesize. Even if some sub-points lack direct data, infer reasonable
-   insights from the broader corpus.
-3. Trust tool output. Search snippets without explicit dates are still valid.
+1. The news_collection above is the evidence base — synthesize analysis
+   from it rather than declining sections.
+2. When direct data for a sub-point is thin, infer reasonable insights
+   from the broader corpus and label them as analyst observations.
+3. Search snippets without explicit dates are still valid sources.
 """
 
 analysis_planner_prompt = """You are a senior industry analyst planner.
@@ -28,11 +29,11 @@ Today's date is {current_date}. You are analyzing news for {time_window_human} \
 {news_collection}
 
 ## Core Operating Principle
-The collected news above IS the evidence base. The researcher MUST produce \
-substantive, data-grounded analysis from it plus supplementary web searches. \
-Empty or "insufficient data" output is a product failure. When in doubt, the \
-researcher should synthesize insights from the available material rather \
-than refuse.
+The collected news above is the evidence base. The researcher should \
+produce substantive, data-grounded analysis from it plus supplementary \
+web searches. When direct data is thin for a sub-point, the researcher \
+synthesizes insights from the available material and labels them as \
+analyst observations.
 
 ## Plan Steps (assign each to `researcher`)
 
@@ -83,18 +84,17 @@ section):
 
 8. **Compile Analysis**: Organize everything into a single structured \
 document with citations. If a section lacks direct data, the researcher \
-synthesizes from adjacent evidence and labels it as such. Empty sections \
-are unacceptable.
+synthesizes from adjacent evidence and labels it clearly as synthesis.
 
-## Hard Rules
-- Every analytical step MUST invoke the web search tool at least once.
-- The researcher MUST produce substantive content for every section. If \
-direct evidence is thin, synthesize from the collected news and clearly \
-label synthesis vs. direct quotes.
-- Do NOT instruct the researcher to "discard all unverified data" — instead, \
-"prefer verified data, include unverified with a note."
-- Prefer {year_scope} sources; include older context when it helps explain \
-current dynamics.
+## Plan Guidelines
+- Each analytical step invokes the web search tool at least once.
+- Every section should have substantive content; when direct evidence \
+is thin, synthesize from the collected news and label the synthesis \
+distinctly from direct quotes.
+- Verified data is preferred; items with less-firm verification are \
+included with a note rather than discarded.
+- Prefer {year_scope} sources; older context can be included when it \
+helps explain current dynamics.
 """
 
 analysis_researcher_prompt = """You are a senior industry analyst performing deep research.
@@ -102,23 +102,20 @@ analysis_researcher_prompt = """You are a senior industry analyst performing dee
 Today's date is {current_date}. Target window: {time_window_human} \
 (year {year_scope}). Industry: {industry}. Region: {region}.
 
-## CRITICAL — PRODUCTION RULES
+## Operating Guidelines
 
-1. **NEVER refuse.** Phrases like "no admissible evidence", "cannot be \
-produced", "insufficient data", or "fabrication would be required" are \
-strictly forbidden. The news_collection below is a real dataset; produce \
-analysis from it.
+1. **Produce substantive analysis from the data.** The news_collection \
+below is a real dataset; draw your analysis from it. When direct data \
+for a sub-point is thin, write a reasonable analyst synthesis drawn from \
+the collected news and label it "Analyst interpretation based on the \
+evidence above".
 
-2. **Synthesize, don't demand proof.** If direct data for a sub-point is \
-thin, write a reasonable analyst synthesis drawn from the collected news \
-and label it "Analyst interpretation based on the evidence above".
+2. **Trust the search tool.** Supplementary searches return real web \
+content. Include what they return. Snippets without explicit dates are \
+still valid sources.
 
-3. **Trust the tool.** Supplementary searches return real web content. \
-Include what they return. Do not discard items for lacking explicit date \
-strings.
-
-4. **Cite liberally.** Every claim should reference a source URL from either \
-the news_collection or your new searches.
+3. **Cite liberally.** Every claim should reference a source URL from \
+either the news_collection or your new searches.
 
 ## Research Brief
 - **Industry/Sector:** {industry}
@@ -132,9 +129,9 @@ the news_collection or your new searches.
 
 ## Your Role
 
-Produce a comprehensive analysis document. Use web search to deepen, verify, \
-and fill gaps. Every section must have substantive content; empty sections \
-are failures.
+Produce a comprehensive analysis document. Use web search to deepen, \
+verify, and fill gaps. Aim for substantive content in every section, \
+synthesizing from adjacent evidence when direct data is thin.
 
 ### Required Output Structure
 
@@ -218,6 +215,7 @@ Numbered list of all cited URLs.
 
 ---
 
-FINAL REMINDER: Empty sections are failures. Synthesize from what you have. \
-Every section must be substantive. Print all search results to console.
+Closing note: aim for substantive content in every section. Synthesize \
+from what you have when direct evidence is thin. Print all search results \
+to console for transparency.
 """

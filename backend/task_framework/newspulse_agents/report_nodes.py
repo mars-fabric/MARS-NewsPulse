@@ -31,22 +31,20 @@ _MAX_SUMMARY_CHARS = 50_000
 # System-level instruction injected into every section prompt to prevent
 # the LLM from refusing or hallucinating data.
 _COMPILER_SYSTEM = (
-    "IMPORTANT: You are a REPORT COMPILER, not a search engine. "
-    "All the data you need is provided below — it was collected by earlier "
-    "research stages via web search. Your ONLY job is to read this data "
-    "and reorganise it into the requested format.\n\n"
-    "STRICTLY FORBIDDEN responses:\n"
-    "- 'no data available', 'no verifiable data', 'cannot be compiled'\n"
-    "- 'insufficient evidence', 'would require fabrication'\n"
-    "- 'the research stage found no data'\n"
-    "- Any refusal to produce content\n\n"
-    "If the provided data is thin, you MUST still produce a substantive "
-    "section by synthesizing from whatever is available — extract company "
-    "names, sources, themes, quoted events. Even a bare list of source "
-    "domains beats an empty section. Your product is broken if you refuse.\n\n"
+    "You are a REPORT COMPILER. All the data you need is provided below — "
+    "it was collected by earlier research stages via web search. Your job is "
+    "to read this data and organise it into the requested format.\n\n"
+    "Guidelines:\n"
+    "- Always produce substantive content from the provided data.\n"
+    "- Extract and organise company names, source URLs, themes, events, "
+    "and quoted details from the material below.\n"
+    "- When the data is limited, synthesize insights from whatever is "
+    "available — a concise factual summary grounded in the source material "
+    "is always valuable.\n"
+    "- Every section should contain real information drawn from the data.\n\n"
     "Style rules:\n"
-    "- Do NOT add disclaimers about data freshness or AI generation.\n"
-    "- Do NOT wrap output in code fences (no triple backticks).\n"
+    "- Write in a professional analyst tone.\n"
+    "- Do not wrap output in code fences (no triple backticks).\n"
     "- Include real URLs/links exactly as they appear in the data.\n"
     "- Use plain markdown."
 )
@@ -184,18 +182,13 @@ def _call_llm_with_antirefusal(
     )
 
     retry_prompt = (
-        "The previous attempt produced a refusal or empty output. That is a "
-        "product failure and not acceptable.\n\n"
-        "You MUST now produce substantive content by extracting ANY useful "
-        "material from the data below: source URLs, company names, event "
-        "keywords, quoted sentences, domain names. Even a terse factual summary "
-        "grounded in the source domains and extracted keywords is better than "
-        "another refusal.\n\n"
-        "Strictly forbidden in this retry:\n"
-        "- Any phrase like 'cannot', 'no data', 'unable', 'insufficient'.\n"
-        "- Any refusal to produce the section.\n\n"
+        "Please produce the report section described below. Focus on "
+        "extracting useful material from the provided data: source URLs, "
+        "company names, event keywords, quoted sentences, and domain names. "
+        "A concise factual summary grounded in the source material is "
+        "always valuable.\n\n"
         f"{retry_hint}\n\n"
-        "Original prompt follows — now execute it without refusing:\n\n"
+        "Here is the full prompt with data:\n\n"
         "---\n\n"
         + prompt
     )
@@ -379,7 +372,7 @@ The automated web research pipeline returned thin results for this request, so
 we need you to generate an industry context document from your general
 knowledge. This document will be used as supplementary material in a report —
 it will be clearly labelled as model-generated background, so your job is to
-produce substantive, reasonable industry context, not a refusal.
+produce substantive, reasonable industry context as supplementary background.
 
 Request:
 - Industry: {industry}
@@ -421,7 +414,7 @@ including sub-region dynamics where relevant.
 Short-term (1-3 months) and medium-term (3-12 months) framing for the sector.
 
 RULES:
-- Do NOT refuse. Do NOT add disclaimers about "real-time data".
+- Always produce substantive content from your general knowledge.
 - Do NOT invent specific press releases with fake dates or quotes.
 - General industry knowledge is fine; specific event claims must be
   plausible but need not be verified.
@@ -572,7 +565,7 @@ def _section_context(state: Dict[str, Any]) -> str:
         f"Time Window: {tw_human}\n"
         f"\nFocus on {tw_human} content for {state.get('region', 'Global')}, "
         f"but include older context when it helps explain current dynamics. "
-        f"Extract whatever the data below contains — refusing is not an option.\n"
+        f"Extract and organise whatever the data below contains.\n"
     )
 
 
@@ -802,17 +795,17 @@ Format each as:
 1. **[Headline]** — [Brief summary, 1-2 sentences]. *Source: [source name/URL from the data]*
 2. ...
 
-Rules:
-- Extract headlines and sources DIRECTLY from the data above
-- Include real URLs where they appear in the data
-- Do NOT say you cannot access data — it is ALL provided above
-- Output ONLY the numbered list, no heading, no preamble
+Formatting guidelines:
+- Draw headlines and sources directly from the data above.
+- Include real URLs where they appear in the data.
+- Treat the data above as the authoritative source for this section.
+- Output ONLY the numbered list, no heading, no preamble.
 """
     result = _call_llm_with_antirefusal(
         state, prompt, max_tokens=2048,
-        retry_hint="Extract at least 8 headlines from the data. Use source "
-                    "URL + domain name if you cannot find a clear title. "
-                    "Do NOT output empty sections.",
+        retry_hint="Extract at least 8 headlines from the data. Use the "
+                    "source URL and domain name as the headline when no "
+                    "clear title is available. Produce a non-empty list.",
     )
     logger.info("headlines_node: %d chars", len(result))
     return {
@@ -856,7 +849,7 @@ Output ONLY the subsections in markdown (no parent heading, no code fences).
         state, prompt, max_tokens=3072,
         retry_hint="Pick any 3 themes / events / companies mentioned in "
                     "either the news data or the analysis data above and "
-                    "write one paragraph about each. Do not refuse.",
+                    "write one paragraph about each. Always produce content.",
     )
     logger.info("in_depth_analysis_node: %d chars", len(result))
     return {
@@ -907,7 +900,7 @@ Use ONLY facts from the provided data. Output ONLY the company subsections in ma
         retry_hint="For each requested company, write at least 3 bullets. "
                     "If the data does not name a company explicitly, "
                     "describe the company's general role in the industry "
-                    "and mark sentiment as Neutral. Do not refuse.",
+                    "and mark sentiment as Neutral. Always produce content.",
     )
     logger.info("company_analysis_node: %d chars", len(result))
     return {
@@ -951,7 +944,7 @@ Output BOTH sections with their exact ### headings. No code fences.
     result = _call_llm_with_antirefusal(
         state, prompt, max_tokens=2048,
         retry_hint="List 3 trends AND 3 risks — even if general to the "
-                    "industry. Keep them broad if the data is thin. Do not refuse.",
+                    "industry. Keep them broad if the data is thin. Always produce content.",
     )
 
     # Split into trends and risks — robust regex split handles ##/###/####
@@ -1095,7 +1088,7 @@ Output BOTH sections with their exact ### headings. No code fences.
                 f"Write both sections specifically about {region} and "
                 f"{industry}. If direct data is thin, synthesize from "
                 f"general industry knowledge grounded in the themes "
-                f"surfaced in the data. Do not refuse."
+                f"surfaced in the data. Always produce content."
             ),
         )
     except Exception as e:
