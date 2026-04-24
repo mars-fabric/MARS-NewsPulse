@@ -99,18 +99,20 @@ def _compute_year_scope(time_window: str) -> str:
 
 
 def _compute_exclusion_years(year_scope: str) -> str:
-    """Build a human-readable list of years to exclude."""
-    import re
-    now = datetime.now()
-    scope_years = set(re.findall(r'\b(20\d{2})\b', year_scope))
-    scope_ints = {int(y) for y in scope_years} if scope_years else {now.year}
+    """Describe years whose direct data is deprioritized (not forbidden).
 
-    # Build exclusion list: common years users might accidentally get
-    all_recent = set(range(2020, now.year + 2))
-    excluded = sorted(all_recent - scope_ints)
-    if not excluded:
-        return "years before 2024"
-    return ", ".join(str(y) for y in excluded)
+    We intentionally keep this wording soft: historical prompts that ordered
+    the LLM to "DISCARD" anything from these years produced empty datasets
+    because search snippets often lack explicit publication dates. Now the
+    prompts only say "prefer year_scope"; this function exists solely to
+    fill old template slots.
+    """
+    return f"outside {year_scope}"
+
+
+def _compute_current_date() -> str:
+    """Return the current date as a human-readable string for prompt context."""
+    return datetime.now().strftime("%B %d, %Y")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -170,13 +172,15 @@ def build_discovery_kwargs(
     year_scope = _compute_year_scope(time_window)
     exclusion_years = _compute_exclusion_years(year_scope)
 
+    current_date = _compute_current_date()
     task_desc = (
-        f"Search and collect the latest news, breaking stories, and major "
-        f"developments in the {industry} industry for the {region} region "
-        f"over {time_window_human} (year: {year_scope}). Use web search "
-        f"extensively to gather real, current data from multiple sources. "
-        f"IMPORTANT: Every search query must include '{year_scope}' and '{region}'. "
-        f"Discard any result from {exclusion_years}."
+        f"Collect the latest news, breaking stories, and major developments "
+        f"in the {industry} industry for the {region} region over "
+        f"{time_window_human} (year: {year_scope}). Use the web search tool "
+        f"extensively. INCLUDE every result the tool returns; label missing "
+        f"dates as 'not stated' rather than discarding. Prefer {year_scope} "
+        f"content but do not refuse to output data — produce at least 15 "
+        f"headlines with URLs. Today's date is {current_date}."
     )
     if companies:
         task_desc += f" Include focused searches on: {companies}."
@@ -190,6 +194,7 @@ def build_discovery_kwargs(
         time_window_human=time_window_human,
         year_scope=year_scope,
         exclusion_years=exclusion_years,
+        current_date=current_date,
     )
 
     return dict(
@@ -314,14 +319,14 @@ def build_analysis_kwargs(
     year_scope = _compute_year_scope(time_window)
     exclusion_years = _compute_exclusion_years(year_scope)
 
+    current_date = _compute_current_date()
     task_desc = (
-        f"Perform deep sentiment analysis, trend identification, risk assessment, "
-        f"and company analysis for the {industry} industry in {region} "
-        f"during {time_window_human} ({year_scope}). "
-        f"Build on the collected news data and perform additional web searches "
-        f"to create comprehensive analytical insights. "
-        f"IMPORTANT: Every search query must include '{year_scope}' and '{region}'. "
-        f"Discard any data from {exclusion_years}."
+        f"Produce comprehensive analytical insights (sentiment, trends, "
+        f"risks, company analysis) for the {industry} industry in {region} "
+        f"during {time_window_human} ({year_scope}). Build on the collected "
+        f"news data and run additional web searches to deepen the picture. "
+        f"Every section must have substantive content — synthesize from the "
+        f"data when direct evidence is thin. Today's date is {current_date}."
     )
     if companies:
         task_desc += f" Provide detailed analysis for: {companies}."
@@ -336,6 +341,7 @@ def build_analysis_kwargs(
         year_scope=year_scope,
         exclusion_years=exclusion_years,
         news_collection=news_collection,
+        current_date=current_date,
     )
 
     return dict(
@@ -427,6 +433,7 @@ def build_final_report_kwargs(
         exclusion_years=exclusion_years,
         news_collection=news_collection,
         deep_analysis=deep_analysis,
+        current_date=_compute_current_date(),
     )
 
     return dict(

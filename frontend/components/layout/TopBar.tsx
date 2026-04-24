@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import { Sun, Moon, Plus, Settings, TrendingUp } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
-import { useWebSocketContext } from '@/contexts/WebSocketContext'
-import { ConnectionStatus } from '@/components/common/ConnectionStatus'
 import ProviderSettings from '@/components/settings/ProviderSettings'
 
 interface TopBarProps {
@@ -13,7 +11,6 @@ interface TopBarProps {
 
 export default function TopBar({ onNewSession }: TopBarProps) {
   const { theme, toggleTheme } = useTheme()
-  const { connected, reconnectAttempt, lastError, reconnect } = useWebSocketContext()
   const [showSettings, setShowSettings] = useState(false)
 
   return (
@@ -51,14 +48,8 @@ export default function TopBar({ onNewSession }: TopBarProps) {
             </div>
           </div>
 
-          {/* Right: settings + theme + connection + new */}
+          {/* Right: settings + theme + new */}
           <div className="flex items-center gap-2">
-            <ConnectionStatus
-              connected={connected}
-              reconnectAttempt={reconnectAttempt}
-              lastError={lastError}
-              onReconnect={reconnect}
-            />
 
             <button
               onClick={() => setShowSettings(true)}

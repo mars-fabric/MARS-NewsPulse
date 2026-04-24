@@ -28,6 +28,11 @@ class NewsPulseReportState(TypedDict):
     news_summary: str          # truncated / summarised for per-section prompts
     analysis_summary: str      # truncated / summarised for per-section prompts
 
+    # ── Extracted metadata (populated by preprocess) ──
+    extracted_urls: list       # all unique URLs found in source data
+    regional_context: str      # pre-extracted regional data for section 8
+    outlook_context: str       # pre-extracted outlook data for section 9
+
     # ── Per-section outputs (populated by nodes) ──
     executive_summary: str
     sentiment_dashboard: str
