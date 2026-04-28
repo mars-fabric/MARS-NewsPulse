@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { Eye, Edit3, Save, ArrowRight, ArrowLeft, RefreshCw, Loader2, Send, Check } from 'lucide-react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { Eye, Edit3, ArrowRight, ArrowLeft, RefreshCw, Loader2, Check } from 'lucide-react'
 import { Button } from '@/components/core'
 import ExecutionProgress from '@/components/deepresearch/ExecutionProgress'
 import MarkdownRenderer from '@/components/files/MarkdownRenderer'
@@ -32,22 +32,17 @@ export default function NpReviewPanel({
     taskState,
     editableContent,
     setEditableContent,
-    refinementMessages,
     consoleOutput,
     isExecuting,
     executeStage,
     fetchStageContent,
     saveStageContent,
-    refineContent,
   } = hook
 
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
   const [saveIndicator, setSaveIndicator] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [contentLoaded, setContentLoaded] = useState(false)
-  const [chatInput, setChatInput] = useState('')
-  const [isSendingChat, setIsSendingChat] = useState(false)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const chatScrollRef = useRef<HTMLDivElement>(null)
 
   const stage = taskState?.stages.find(s => s.stage_number === stageNum)
   const isStageCompleted = stage?.status === 'completed'
@@ -61,13 +56,6 @@ export default function NpReviewPanel({
       fetchStageContent(stageNum).then(() => setContentLoaded(true))
     }
   }, [isStageCompleted, isStageFailed, contentLoaded, fetchStageContent, stageNum])
-
-  // Auto-scroll chat
-  useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
-    }
-  }, [refinementMessages])
 
   const canEdit = isStageCompleted || (isStageFailed && !!editableContent)
 
@@ -85,19 +73,6 @@ export default function NpReviewPanel({
       }
     }, 1000)
   }, [canEdit, saveStageContent, setEditableContent, stageNum, sharedKey])
-
-  // Chat (AI refine) — do NOT auto-apply; store result for preview
-  const handleSendChat = useCallback(async () => {
-    if (!chatInput.trim() || isSendingChat) return
-    const msg = chatInput.trim()
-    setChatInput('')
-    setIsSendingChat(true)
-
-    await refineContent(stageNum, msg, editableContent)
-    // Result is now in refinementMessages as the latest assistant message.
-    // User clicks "Apply to editor" to accept it.
-    setIsSendingChat(false)
-  }, [chatInput, isSendingChat, refineContent, stageNum, editableContent])
 
   // If stage is running, show execution progress
   if (isStageRunning) {
@@ -130,11 +105,10 @@ export default function NpReviewPanel({
 
   // Stage completed (or failed with content) — show review UI
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex gap-6" style={{ minHeight: '500px' }}>
-        {/* Main editor/preview */}
-        <div className="flex-1 flex flex-col">
-          {/* Toolbar */}
+    <div className="max-w-4xl mx-auto">
+      {/* Main editor/preview */}
+      <div className="flex flex-col" style={{ minHeight: '500px' }}>
+        {/* Toolbar */}
           <div
             className="flex items-center justify-between px-4 py-2 rounded-t-mars-md border border-b-0"
             style={{
@@ -215,108 +189,6 @@ export default function NpReviewPanel({
               </div>
             )}
           </div>
-        </div>
-
-        {/* Refinement chat sidebar */}
-        <div
-          className="w-80 flex flex-col rounded-mars-md border"
-          style={{
-            borderColor: 'var(--mars-color-border)',
-            backgroundColor: 'var(--mars-color-surface)',
-          }}
-        >
-          <div
-            className="px-4 py-3 border-b flex-shrink-0"
-            style={{ borderColor: 'var(--mars-color-border)' }}
-          >
-            <p className="text-sm font-medium" style={{ color: 'var(--mars-color-text)' }}>
-              AI Refinement
-            </p>
-            <p className="text-xs" style={{ color: 'var(--mars-color-text-tertiary)' }}>
-              Ask the AI to refine the report
-            </p>
-          </div>
-
-          {/* Messages */}
-          <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
-            {refinementMessages.length === 0 && (
-              <p className="text-xs text-center py-6" style={{ color: 'var(--mars-color-text-tertiary)' }}>
-                Ask the AI to add topics, remove companies, expand sections, or adjust the analysis...
-              </p>
-            )}
-            {refinementMessages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className="max-w-[90%] px-3 py-2 rounded-mars-md text-xs"
-                  style={{
-                    backgroundColor: msg.role === 'user'
-                      ? 'var(--mars-color-primary)'
-                      : 'var(--mars-color-surface-overlay)',
-                    color: msg.role === 'user'
-                      ? 'white'
-                      : 'var(--mars-color-text)',
-                  }}
-                >
-                  {msg.role === 'assistant' ? (
-                    <div>
-                      <p className="mb-1.5 whitespace-pre-wrap">{msg.content.slice(0, 300)}{msg.content.length > 300 ? '...' : ''}</p>
-                      <button
-                        onClick={() => {
-                          setEditableContent(msg.content)
-                          saveStageContent(stageNum, msg.content, sharedKey)
-                        }}
-                        className="mt-1 px-2 py-0.5 rounded text-xs font-medium"
-                        style={{
-                          backgroundColor: 'var(--mars-color-primary)',
-                          color: 'white',
-                        }}
-                      >
-                        Apply to editor
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-            {isSendingChat && (
-              <div className="flex justify-start">
-                <div className="px-3 py-2 rounded-mars-md" style={{ backgroundColor: 'var(--mars-color-surface-overlay)' }}>
-                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--mars-color-primary)' }} />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Input */}
-          <div className="p-3 border-t" style={{ borderColor: 'var(--mars-color-border)' }}>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat() } }}
-                placeholder="Add more depth on AI regulation..."
-                className="flex-1 px-3 py-2 text-xs rounded-mars-md border outline-none"
-                style={{
-                  backgroundColor: 'var(--mars-color-surface)',
-                  borderColor: 'var(--mars-color-border)',
-                  color: 'var(--mars-color-text)',
-                }}
-                disabled={isSendingChat}
-              />
-              <Button
-                onClick={handleSendChat}
-                disabled={!chatInput.trim() || isSendingChat}
-                variant="primary"
-                size="sm"
-              >
-                <Send className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Navigation */}

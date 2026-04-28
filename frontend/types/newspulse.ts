@@ -46,18 +46,6 @@ export interface NewsPulseCreateResponse {
   stages: NewsPulseStage[]
 }
 
-export interface NewsPulseRefineResponse {
-  refined_content: string
-  message: string
-}
-
-export interface NewsPulseRefinementMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: number
-}
-
 /** Wizard step mapping (0-indexed) */
 export type NewsPulseWizardStep = 0 | 1 | 2 | 3
 
