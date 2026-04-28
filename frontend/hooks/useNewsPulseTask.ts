@@ -276,10 +276,13 @@ export function useNewsPulseTask(): UseNewsPulseTaskReturn {
     }
     setRefinementMessages(prev => [...prev, userMsg])
 
+    // Build conversation history from previous messages (exclude the one we just added)
+    const history = refinementMessages.map(m => ({ role: m.role, content: m.content }))
+
     try {
       const resp: NewsPulseRefineResponse = await apiFetch(`/api/newspulse/${taskId}/stages/${stageNum}/refine`, {
         method: 'POST',
-        body: JSON.stringify({ message, content }),
+        body: JSON.stringify({ message, content, history }),
       })
 
       const assistantMsg: NewsPulseRefinementMessage = {
@@ -294,7 +297,7 @@ export function useNewsPulseTask(): UseNewsPulseTaskReturn {
       setError(e instanceof Error ? e.message : 'Refinement failed')
       return null
     }
-  }, [taskId, apiFetch])
+  }, [taskId, apiFetch, refinementMessages])
 
   // ---- Resume ----
 

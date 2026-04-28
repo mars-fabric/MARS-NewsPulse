@@ -86,20 +86,18 @@ export default function NpReviewPanel({
     }, 1000)
   }, [canEdit, saveStageContent, setEditableContent, stageNum, sharedKey])
 
-  // Chat (AI refine)
+  // Chat (AI refine) — do NOT auto-apply; store result for preview
   const handleSendChat = useCallback(async () => {
     if (!chatInput.trim() || isSendingChat) return
     const msg = chatInput.trim()
     setChatInput('')
     setIsSendingChat(true)
 
-    const result = await refineContent(stageNum, msg, editableContent)
-    if (result) {
-      setEditableContent(result)
-      await saveStageContent(stageNum, result, sharedKey)
-    }
+    await refineContent(stageNum, msg, editableContent)
+    // Result is now in refinementMessages as the latest assistant message.
+    // User clicks "Apply to editor" to accept it.
     setIsSendingChat(false)
-  }, [chatInput, isSendingChat, refineContent, stageNum, editableContent, setEditableContent, saveStageContent, sharedKey])
+  }, [chatInput, isSendingChat, refineContent, stageNum, editableContent])
 
   // If stage is running, show execution progress
   if (isStageRunning) {
@@ -261,14 +259,17 @@ export default function NpReviewPanel({
                 >
                   {msg.role === 'assistant' ? (
                     <div>
-                      <p className="mb-1.5 whitespace-pre-wrap">{msg.content.slice(0, 200)}...</p>
+                      <p className="mb-1.5 whitespace-pre-wrap">{msg.content.slice(0, 300)}{msg.content.length > 300 ? '...' : ''}</p>
                       <button
                         onClick={() => {
                           setEditableContent(msg.content)
                           saveStageContent(stageNum, msg.content, sharedKey)
                         }}
-                        className="text-xs font-medium underline"
-                        style={{ color: 'var(--mars-color-primary)' }}
+                        className="mt-1 px-2 py-0.5 rounded text-xs font-medium"
+                        style={{
+                          backgroundColor: 'var(--mars-color-primary)',
+                          color: 'white',
+                        }}
                       >
                         Apply to editor
                       </button>

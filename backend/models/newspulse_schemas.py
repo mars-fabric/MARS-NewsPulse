@@ -49,10 +49,20 @@ class NewsPulseContentUpdateRequest(BaseModel):
     field: str = Field("draft_report", description="shared_state key to update")
 
 
+class NewsPulseRefineChatMessage(BaseModel):
+    """Single message in refinement conversation history."""
+    role: str = Field(..., description="'user' or 'assistant'")
+    content: str = Field(..., description="Message content")
+
+
 class NewsPulseRefineRequest(BaseModel):
     """POST /api/newspulse/{task_id}/stages/{num}/refine"""
     message: str = Field(..., description="User instruction for the LLM")
     content: str = Field(..., description="Current editor content to refine")
+    history: list[NewsPulseRefineChatMessage] = Field(
+        default_factory=list,
+        description="Previous refinement conversation messages for context",
+    )
 
 
 # =============================================================================
