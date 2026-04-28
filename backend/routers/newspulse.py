@@ -875,87 +875,57 @@ async def update_stage_content(task_id: str, stage_num: int, request: NewsPulseC
 # POST /api/newspulse/{task_id}/stages/{num}/refine
 # =============================================================================
 
-_STAGE_CONTEXT = {
-    2: (
-        "News Discovery & Collection",
-        "This content is a curated collection of news headlines, breaking stories, "
-        "company updates, market activity, and regulatory developments. "
-        "Preserve the category structure (Breaking News, Company News, Market Activity, "
-        "Regulatory Updates, Technology & Innovation, etc.) and all source citations.",
-    ),
-    3: (
-        "Deep Sentiment & Analysis",
-        "This content is a deep analytical report containing a Market Sentiment Dashboard, "
-        "In-Depth Event Analysis, Company Deep Dives, Emerging Trends, Risk Factors, "
-        "Regional Market Dynamics, and Preliminary Outlook. "
-        "Preserve all section headings, data tables, and analytical structure.",
-    ),
-    4: (
-        "Final Executive Report",
-        "This content is a formal 12-section executive briefing report. "
-        "Preserve the standard section order: Executive Summary, Market Sentiment Dashboard, "
-        "Top Headlines, In-Depth Analysis, Company Analysis, Emerging Trends, Risk Factors, "
-        "Regional Market Dynamics, Outlook & Recommendations, Sources, and Disclaimer. "
-        "Maintain professional executive tone throughout.",
-    ),
-}
-
-
 @router.post("/{task_id}/stages/{stage_num}/refine", response_model=NewsPulseRefineResponse)
 async def refine_stage_content(task_id: str, stage_num: int, request: NewsPulseRefineRequest):
-    """LLM refine for stage content."""
+    """Refine stage content via diff-based patching with full-document fallback.
+
+    Phase 1 asks the LLM for a small JSON array of find→replace edits, applied
+    with fuzzy matching. Phase 2 falls back to a full-document rewrite only if
+    Phase 1 cannot land any edit. LLM output stays proportional to the edit, so
+    refinement works on 200KB+ stage outputs without timing out.
+    """
     import concurrent.futures
+    from services.diff_patcher import refine_with_diff
 
-    stage_name, stage_instructions = _STAGE_CONTEXT.get(
-        stage_num, ("Report", "Preserve the existing structure and formatting.")
-    )
-
-    system_prompt = (
-        f"You are an expert industry analyst refining Stage {stage_num}: {stage_name} "
-        "of a news & sentiment report.\n\n"
-        "CRITICAL RULES:\n"
-        "1. ONLY modify the parts the user explicitly asks to change.\n"
-        "2. Keep ALL other sections, headings, data, and formatting EXACTLY as-is — "
-        "do not rewrite, rephrase, reorder, or remove anything the user did not mention.\n"
-        "3. If the user says 'update this point' or refers to a specific item, change ONLY "
-        "that item and return the full document with everything else unchanged.\n"
-        "4. If the user asks to 'refactor' or 'rewrite', you may restructure more broadly "
-        "but still preserve all factual data and source citations.\n"
-        "5. Return ONLY the refined markdown content — no preamble, no explanations, "
-        "no commentary before or after.\n\n"
-        f"STAGE CONTEXT: {stage_instructions}"
-    )
-
-    # Build messages with conversation history for multi-turn context
-    messages: list[dict] = [{"role": "system", "content": system_prompt}]
-
-    # Add prior conversation turns (capped at last 6 to stay within limits)
-    for hist_msg in request.history[-6:]:
-        messages.append({"role": hist_msg.role, "content": hist_msg.content})
-
-    # Current user request with the full document
-    user_content = (
-        f"--- CURRENT CONTENT ---\n{request.content}\n\n"
-        f"--- USER REQUEST ---\n{request.message}"
-    )
-    messages.append({"role": "user", "content": user_content})
+    def _llm_call(messages, model, temperature, max_tokens):
+        from cmbagent.llm_provider import safe_completion
+        return safe_completion(
+            messages=messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
 
     try:
-        def _call_llm():
-            from cmbagent.llm_provider import safe_completion
-            return safe_completion(
-                messages=messages,
+        def _run():
+            return refine_with_diff(
+                content=request.content,
+                user_request=request.message,
+                llm_call=_llm_call,
                 model="gpt-4o",
-                temperature=0.3,
-                max_tokens=16000,
+                temperature=0.4,
+                fallback_temperature=0.7,
             )
 
-        loop = asyncio.get_event_loop()
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            refined = await loop.run_in_executor(executor, _call_llm)
+            result = await asyncio.get_running_loop().run_in_executor(executor, _run)
 
-        return NewsPulseRefineResponse(refined_content=refined)
+        if result.method == "diff":
+            msg = f"Applied {len(result.applied)} edit(s) via diff patching"
+            if result.failed:
+                msg += f" ({len(result.failed)} edit(s) could not be located)"
+        else:
+            msg = "Content refined via full-document rewrite"
+
+        return NewsPulseRefineResponse(
+            refined_content=result.content,
+            message=msg,
+            method=result.method,
+            edits_applied=len(result.applied),
+            edits_failed=len(result.failed),
+        )
     except Exception as e:
+        logger.error("newspulse_refine_failed task_id=%s stage=%s err=%s", task_id, stage_num, e)
         raise HTTPException(status_code=500, detail=f"Refinement failed: {str(e)}")
 
 

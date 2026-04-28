@@ -7,6 +7,8 @@ import type {
   NewsPulseTaskState,
   NewsPulseStageContent,
   NewsPulseCreateResponse,
+  NewsPulseRefineResponse,
+  NewsPulseRefinementMessage,
   NewsPulseWizardStep,
   NewsPulseStageConfig,
 } from '@/types/newspulse'
@@ -25,6 +27,7 @@ interface UseNewsPulseTaskReturn {
 
   // Stage content
   editableContent: string
+  refinementMessages: NewsPulseRefinementMessage[]
   consoleOutput: string[]
   isExecuting: boolean
 
@@ -39,6 +42,8 @@ interface UseNewsPulseTaskReturn {
   executeStage: (stageNum: number, overrideId?: string) => Promise<void>
   fetchStageContent: (stageNum: number) => Promise<NewsPulseStageContent | null>
   saveStageContent: (stageNum: number, content: string, field: string) => Promise<void>
+  refineContent: (stageNum: number, message: string, content: string) => Promise<string | null>
+  clearRefinementMessages: () => void
   setCurrentStep: (step: NewsPulseWizardStep) => void
   setEditableContent: (content: string) => void
   resumeTask: (taskId: string) => Promise<void>
@@ -56,6 +61,7 @@ export function useNewsPulseTask(): UseNewsPulseTaskReturn {
 
   const [taskConfig, setTaskConfig] = useState<NewsPulseStageConfig>({})
   const [editableContent, setEditableContent] = useState('')
+  const [refinementMessages, setRefinementMessages] = useState<NewsPulseRefinementMessage[]>([])
   const [consoleOutput, setConsoleOutput] = useState<string[]>([])
   const [isExecuting, setIsExecuting] = useState(false)
 
@@ -256,6 +262,60 @@ export function useNewsPulseTask(): UseNewsPulseTaskReturn {
     }
   }, [taskId, apiFetch])
 
+  // ---- AI Refinement ----
+
+  const refineContent = useCallback(async (
+    stageNum: number,
+    message: string,
+    content: string,
+  ): Promise<string | null> => {
+    if (!taskId) return null
+
+    const userMsg: NewsPulseRefinementMessage = {
+      id: `u-${Date.now()}`,
+      role: 'user',
+      content: message,
+      timestamp: Date.now(),
+    }
+    setRefinementMessages(prev => [...prev, userMsg])
+
+    try {
+      const resp: NewsPulseRefineResponse = await apiFetch(
+        `/api/newspulse/${taskId}/stages/${stageNum}/refine`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ message, content, history: [] }),
+        }
+      )
+
+      const assistantMsg: NewsPulseRefinementMessage = {
+        id: `a-${Date.now()}`,
+        role: 'assistant',
+        content: resp.refined_content,
+        timestamp: Date.now(),
+        method: resp.method,
+        editsApplied: resp.edits_applied,
+        editsFailed: resp.edits_failed,
+      }
+      setRefinementMessages(prev => [...prev, assistantMsg])
+      return resp.refined_content
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : 'Refinement failed'
+      setRefinementMessages(prev => [...prev, {
+        id: `e-${Date.now()}`,
+        role: 'assistant',
+        content: `Error: ${errMsg}`,
+        timestamp: Date.now(),
+      }])
+      setError(errMsg)
+      return null
+    }
+  }, [taskId, apiFetch])
+
+  const clearRefinementMessages = useCallback(() => {
+    setRefinementMessages([])
+  }, [])
+
   // ---- Resume ----
 
   const resumeTask = useCallback(async (id: string) => {
@@ -318,6 +378,7 @@ export function useNewsPulseTask(): UseNewsPulseTaskReturn {
       setTaskState(null)
       setCurrentStep(0)
       setEditableContent('')
+      setRefinementMessages([])
       setConsoleOutput([])
       setIsExecuting(false)
       setError(null)
@@ -340,12 +401,15 @@ export function useNewsPulseTask(): UseNewsPulseTaskReturn {
     taskConfig,
     setTaskConfig,
     editableContent,
+    refinementMessages,
     consoleOutput,
     isExecuting,
     createTask,
     executeStage,
     fetchStageContent,
     saveStageContent,
+    refineContent,
+    clearRefinementMessages,
     setCurrentStep: setCurrentStep as (step: NewsPulseWizardStep) => void,
     setEditableContent,
     resumeTask,

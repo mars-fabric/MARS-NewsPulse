@@ -100,6 +100,9 @@ class NewsPulseRefineResponse(BaseModel):
     """Response for POST /api/newspulse/{task_id}/stages/{num}/refine"""
     refined_content: str
     message: str = "Content refined successfully"
+    method: Optional[str] = None  # "diff" or "fallback"
+    edits_applied: Optional[int] = None
+    edits_failed: Optional[int] = None
 
 
 class NewsPulseTaskStateResponse(BaseModel):
